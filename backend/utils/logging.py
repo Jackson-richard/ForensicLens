@@ -5,7 +5,7 @@ def setup_logging():
     logger = logging.getLogger("forensiclens")
     logger.setLevel(logging.INFO)
     
-    # Avoid duplicate logs if instantiated multiple times
+    
     if logger.hasHandlers():
         logger.handlers.clear()
 
