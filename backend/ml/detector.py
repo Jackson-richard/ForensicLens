@@ -11,13 +11,19 @@ class DeepfakeDetector(nn.Module):
         super().__init__()
         
         self.backbone = timm.create_model(model_name, pretrained=pretrained, num_classes=0) 
+        
+        # Freeze backbone initially and train only classification head
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+            
         self.classifier = nn.Sequential(
-            nn.Linear(self.backbone.num_features, 128),
+            nn.Linear(self.backbone.num_features, 256),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(128, 1),
-            nn.Sigmoid()
+            nn.Linear(256, 4)
         )
+        
+        self.criterion = nn.CrossEntropyLoss()
 
     def extract_features(self, x):
         return self.backbone(x)
@@ -52,8 +58,29 @@ def predict_image(image: Image.Image):
     
     start_time = time.time()
     with torch.no_grad():
-        score_tensor, features = detector(input_tensor)
+        logits, features = detector(input_tensor)
+        
+        # Apply softmax during inference
+        probs = torch.softmax(logits, dim=1)
+        confidence, predicted_idx = torch.max(probs, 1)
+        
     inference_time = time.time() - start_time
     
-    score_val = score_tensor.item()
-    return score_val, features, inference_time
+    classes = ["Real", "GAN-based", "Diffusion-based", "Face-swap"]
+    predicted_class = classes[predicted_idx.item()]
+    confidence_pct = round(confidence.item() * 100.0, 2)
+    
+    if predicted_class == "Real":
+        response = {
+            "authenticity": "Authentic",
+            "synthetic_type": None,
+            "confidence": confidence_pct
+        }
+    else:
+        response = {
+            "authenticity": "Synthetic",
+            "synthetic_type": predicted_class,
+            "confidence": confidence_pct
+        }
+    
+    return response, features, inference_time

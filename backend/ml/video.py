@@ -5,33 +5,35 @@ from backend.utils.logging import logger
 import tempfile
 import os
 
-def sample_frames(video_bytes: bytes, num_frames: int = 12) -> list[Image.Image]:
-    """Extracts a fixed number of evenly spaced frames from a video buffer."""
-    
+def sample_frames(video_bytes: bytes) -> list[Image.Image]:
+    """Extracts 1 frame per second from a video buffer."""
     
     temp_fd, temp_path = tempfile.mkstemp(suffix=".mp4")
     try:
         with os.fdopen(temp_fd, 'wb') as f:
             f.write(video_bytes)
             
-        logger.info(f"Sampling {num_frames} frames from video")
         cap = cv2.VideoCapture(temp_path)
         if not cap.isOpened():
             raise ValueError("Cannot open video file to extract frames")
             
+        fps = cap.get(cv2.CAP_PROP_FPS)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if fps <= 0:
+            fps = 30 # fallback
         if total_frames <= 0:
             total_frames = 300 
             
-        frame_indices = np.linspace(0, total_frames - 1, num_frames, dtype=int)
+        duration_seconds = max(1, int(total_frames / fps))
+        logger.info(f"Sampling {duration_seconds} frames (1 fps) from video")
         
         frames = []
-        for target_idx in frame_indices:
+        for sec in range(duration_seconds):
+            target_idx = int(sec * fps)
             cap.set(cv2.CAP_PROP_POS_FRAMES, target_idx)
             ret, frame = cap.read()
             if not ret: 
                 break
-            
             
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frames.append(Image.fromarray(frame_rgb))

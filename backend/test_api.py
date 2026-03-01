@@ -24,7 +24,16 @@ def test_analyze_image():
     )
     assert response.status_code == 200
     data = response.json()
-    assert "authenticity_score" in data
+    assert "authenticity" in data
+    assert "synthetic_type" in data
+    assert "confidence" in data
     assert "attribution_family" in data
     assert "pdf_report" in data
     assert "heatmap" in data
+    assert "forensic_indicators" in data
+    
+    indicators = data["forensic_indicators"]
+    assert "metadata_present" in indicators
+    assert "high_frequency_anomaly" in indicators
+    assert "noise_inconsistency" in indicators
+    assert "face_distortion_detected" in indicators

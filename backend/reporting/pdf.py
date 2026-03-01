@@ -39,7 +39,7 @@ def generate_forensic_report(
         ["File Name:", file_name],
         ["SHA-256 Hash:", file_hash],
     ]
-    
+
     t_case = Table(data, colWidths=[120, 300])
     t_case.setStyle(TableStyle([
         ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),

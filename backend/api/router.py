@@ -10,6 +10,7 @@ from backend.ml.detector import predict_image
 from backend.ml.attributor import attribute_generator
 from backend.ml.explainability import generate_attention_map
 from backend.ml.video import sample_frames
+from backend.ml.forensics import analyze_forensics
 from backend.reporting.pdf import generate_forensic_report
 
 api_router = APIRouter()
@@ -45,11 +46,16 @@ async def analyze_image(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid image file format.")
         
     
-    authenticity_score, features, inf_time1 = predict_image(image)
+    response_dict, features, inf_time1 = predict_image(image)
+    if response_dict["authenticity"] == "Authentic":
+        authenticity_score = 1.0 - (response_dict["confidence"] / 100.0)
+    else:
+        authenticity_score = response_dict["confidence"] / 100.0
     family, confidence, inf_time2 = attribute_generator(features)
     
     
     heatmap_bytes = generate_attention_map(image, features)
+    forensic_indicators = analyze_forensics(image)
     
     
     pdf_bytes = generate_forensic_report(
@@ -66,11 +72,14 @@ async def analyze_image(request: Request, file: UploadFile = File(...)):
         "case_id": case_id,
         "file_name": file.filename,
         "hash": file_hash,
-        "authenticity_score": authenticity_score,
+        "authenticity": response_dict["authenticity"],
+        "synthetic_type": response_dict["synthetic_type"],
+        "confidence": response_dict["confidence"],
         "attribution_family": family,
         "attribution_confidence": confidence,
         "inference_time_secs": inf_time1 + inf_time2,
         "metadata": metadata,
+        "forensic_indicators": forensic_indicators,
         "heatmap": base64.b64encode(heatmap_bytes).decode('utf-8'),
         "pdf_report": base64.b64encode(pdf_bytes).decode('utf-8')
     }
@@ -92,7 +101,7 @@ async def analyze_video(request: Request, file: UploadFile = File(...)):
     
     
     try:
-        frames = sample_frames(contents, num_frames=10)
+        frames = sample_frames(contents)
     except Exception as e:
         logger.error(f"Failed to sample frames: {e}")
         raise HTTPException(status_code=400, detail="Video processing error. Unreadable video.")
@@ -103,26 +112,42 @@ async def analyze_video(request: Request, file: UploadFile = File(...)):
     
     total_time = 0
     scores = []
+    synthetic_count = 0
     families = []
     
     
     middle_frame = frames[len(frames) // 2]
     heatmap_bytes = None
+    middle_frame_forensics = None
     
     for i, frame in enumerate(frames):
-        authenticity_score, features, inf_time1 = predict_image(frame)
+        resp_dict, features, inf_time1 = predict_image(frame)
+        if resp_dict["authenticity"] == "Synthetic":
+            synthetic_count += 1
+            scores.append(resp_dict["confidence"])
+        else:
+            scores.append(100.0 - resp_dict["confidence"])
+            
+        if resp_dict["synthetic_type"]:
+            families.append(resp_dict["synthetic_type"])
+            
         family, _, inf_time2 = attribute_generator(features)
-        
-        scores.append(authenticity_score)
-        families.append(family)
         total_time += (inf_time1 + inf_time2)
         
         if heatmap_bytes is None and i == len(frames) // 2:
             heatmap_bytes = generate_attention_map(frame, features)
+            middle_frame_forensics = analyze_forensics(frame)
             
-    avg_score = sum(scores) / len(scores)
+    avg_score = sum(scores) / len(scores) if scores else 0.0
+    synthetic_percentage = (synthetic_count / len(frames)) * 100.0
     
-    dominant_family = max(set(families), key=families.count)
+    if synthetic_percentage > 50.0:
+        final_verdict = "AI-Generated Video"
+    else:
+        final_verdict = "Authentic Video"
+    
+    dominant_family = max(set(families), key=families.count) if families else None
+
     
     
     metadata = {
@@ -142,13 +167,17 @@ async def analyze_video(request: Request, file: UploadFile = File(...)):
     )
     
     return {
+        "frames_analyzed": len(frames),
+        "synthetic_frames": synthetic_count,
+        "final_verdict": final_verdict,
+        "confidence": round(avg_score, 2),
         "case_id": case_id,
         "file_name": file.filename,
         "hash": file_hash,
-        "authenticity_score": avg_score,
         "attribution_family": dominant_family,
         "inference_time_secs": total_time,
         "metadata": metadata,
+        "forensic_indicators": middle_frame_forensics,
         "heatmap": base64.b64encode(heatmap_bytes).decode('utf-8') if heatmap_bytes else None,
         "pdf_report": base64.b64encode(pdf_bytes).decode('utf-8')
     }
