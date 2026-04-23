@@ -12,7 +12,6 @@ class DeepfakeDetector(nn.Module):
         
         self.backbone = timm.create_model(model_name, pretrained=pretrained, num_classes=0) 
         
-        # Freeze backbone initially and train only classification head
         for param in self.backbone.parameters():
             param.requires_grad = False
             
