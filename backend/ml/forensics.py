@@ -2,7 +2,6 @@ import numpy as np
 from PIL import Image
 
 def check_exif(image: Image.Image) -> bool:
-    """Check if standard EXIF metadata is present."""
     try:
         exif = image.getexif()
         return bool(exif)
@@ -10,9 +9,6 @@ def check_exif(image: Image.Image) -> bool:
         return False
 
 def check_compression_artifacts(image: Image.Image) -> bool:
-    """
-    Apply FFT on grayscale image and detect abnormal high-frequency spikes.
-    """
     try:
         import cv2
         img_gray = cv2.cvtColor(np.array(image.convert("RGB")), cv2.COLOR_RGB2GRAY)
