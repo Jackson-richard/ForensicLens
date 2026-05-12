@@ -20,7 +20,6 @@ def check_compression_artifacts(image: Image.Image) -> bool:
         h, w = magnitude_spectrum.shape
         cy, cx = h // 2, w // 2
         
-        # Mask out the low frequencies (center 25% radius)
         radius = min(h, w) // 4
         y, x = np.ogrid[-cy:h-cy, -cx:w-cx]
         mask = x*x + y*y <= radius*radius
