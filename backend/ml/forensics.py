@@ -36,9 +36,6 @@ def check_compression_artifacts(image: Image.Image) -> bool:
         return False
 
 def check_noise_inconsistency(image: Image.Image) -> bool:
-    """
-    Estimate noise variance using a Laplacian filter over grid patches.
-    """
     try:
         import cv2
         img_gray = cv2.cvtColor(np.array(image.convert("RGB")), cv2.COLOR_RGB2GRAY)
