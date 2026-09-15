@@ -21,7 +21,7 @@ def generate_attention_map(image: Image.Image, features: torch.Tensor = None) ->
     heatmap = cv2.GaussianBlur(heatmap, (51, 51), 0)
     
     
-    heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
+    heatmap_colored = cv2 (np.uint8(255 * heatmap), cv2.COLORMAP_JET)
     
     
     heatmap_rgb = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
