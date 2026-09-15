@@ -45,7 +45,6 @@ def train_model(dataset_dir: str, epochs: int = 10, batch_size: int = 32, learni
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, num_workers=4)
 
-    # Initialize model
     detector = get_detector()
     detector.to(device)
     
