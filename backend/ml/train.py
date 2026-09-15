@@ -28,7 +28,6 @@ def train_model(dataset_dir: str, epochs: int = 10, batch_size: int = 32, learni
 
     train_dataset = datasets.ImageFolder(root=dataset_dir, transform=get_train_transform())
     
-    # Calculate balanced class weights
     class_counts = [0] * len(train_dataset.classes)
     for _, label in train_dataset.samples:
         class_counts[label] += 1
